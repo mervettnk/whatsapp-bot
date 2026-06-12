@@ -4,12 +4,14 @@ const axios = require('axios');
 
 const app = express();
 
+// body parse
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-const SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbx_VwJgAtRaNRsCUuanBhupLN4mXadRFbQfgyGRut3Gx1ApVQPp-zAePq84GAH7WQVyOA/exec";
+// ✅ SENİN GOOGLE SCRIPT URL
+const SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbzlxRIrSVvjdNnwraM25C9bb8G5lb6bgeONkuNfuNE4qhpDaMZtdsCB5HzcLw7-xfOsOg/exec";
 
-// Category → puan map
+// ✅ Category → Puan map (şimdilik temel)
 const POINTS = {
   "sampiyon": 50,
   "finalist": 10,
@@ -19,23 +21,34 @@ const POINTS = {
   "altin top": 25
 };
 
-app.post('/whatsapp', async (req, res) => {
+// test endpoint
+app.get("/", (req, res) => {
+  res.send("Bot aktif ✅");
+});
+
+// webhook
+app.post("/whatsapp", async (req, res) => {
+  console.log("Gelen veri:", req.body);
+
   const msg = req.body.Body;
   const user = req.body.ProfileName || req.body.From;
 
-  // sadece "kupon:" ile başlayan mesajları işle
-  if (msg.toLowerCase().startsWith("kupon:")) {
+  // kupon mesajı kontrol
+  if (msg && msg.toLowerCase().startsWith("kupon:")) {
 
     const lines = msg.split("\n");
 
     for (let line of lines) {
       line = line.trim();
+
       if (!line.includes(":")) continue;
 
-      const [categoryRaw, selection] = line.split(":");
+      const parts = line.split(":");
 
-      const category = categoryRaw.toLowerCase().trim();
-      const choice = selection.trim();
+      if (parts.length < 2) continue;
+
+      const category = parts[0].toLowerCase().trim();
+      const selection = parts[1].trim();
 
       const points = POINTS[category] || 0;
 
@@ -43,9 +56,12 @@ app.post('/whatsapp', async (req, res) => {
         await axios.post(SHEET_WEBHOOK, {
           user,
           category,
-          selection: choice,
+          selection,
           points
         });
+
+        console.log("Sheet'e yazıldı:", user, category, selection);
+
       } catch (err) {
         console.log("Sheet hata:", err.message);
       }
@@ -58,6 +74,7 @@ app.post('/whatsapp', async (req, res) => {
     `);
   }
 
+  // default reply
   res.send(`
     <Response>
       <Message>Komut: kupon:</Message>
@@ -65,9 +82,9 @@ app.post('/whatsapp', async (req, res) => {
   `);
 });
 
+// server
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Server çalışıyor");
+  console.log("Server çalışıyor:", PORT);
 });
-``
